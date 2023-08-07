@@ -13,7 +13,6 @@ import (
 	"time"
 
 	discord "github.com/bwmarrin/discordgo"
-	"gopkg.in/antage/eventsource.v1"
 )
 
 type DiscordAction string
@@ -70,8 +69,29 @@ func SSE(w http.ResponseWriter, r *http.Request, ch chan *DiscordActMessage) {
 					fmt.Println("UnwrapMsg error: ", err)
 					return
 				}
+
+				resp, err := http.Get(msg.Message.Attachments[0].URL)
+				if err != nil {
+					fmt.Println("HTTP请求错误:", err)
+					return
+				}
+				defer resp.Body.Close()
+
+				if resp.StatusCode != http.StatusOK {
+					fmt.Println("HTTP请求错误，响应状态码:", resp.StatusCode)
+					return
+				}
+				// 获取body的大小
+				size := resp.ContentLength
+				uploadRes, err := qiniu_cloud(msg.Message.Attachments[0].URL, resp.Body, size)
+				if err != nil {
+					fmt.Println("上传文件错误:", err)
+					return
+				}
+				url := uploadRes.PublicAccessURL
+
 				es.SendEventMessage(fmt.Sprintf(`{"url":"%s","id":"%s","msgHash":"%s","sessionID":"%s"}`,
-					msg.Message.Attachments[0].URL, msg.Message.ID, getLastString(msg.Message.Attachments[0].Filename), chID),
+					url, msg.Message.ID, getLastString(msg.Message.Attachments[0].Filename), chID),
 					"data", strconv.Itoa(serial))
 				return
 			}
