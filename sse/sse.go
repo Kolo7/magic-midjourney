@@ -13,6 +13,7 @@ import (
 	"time"
 
 	discord "github.com/bwmarrin/discordgo"
+	"gopkg.in/antage/eventsource.v1"
 )
 
 type DiscordAction string
